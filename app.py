@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 # === Vanna imports (LLM + Vector Store combinations) ===
-from vanna.base import VannaBase
+from vanna.qdrant.qdrant_vector import Qdrant_VectorStore
 from vanna.openai.openai_chat import OpenAI_Chat
 from openai import OpenAI
 
@@ -62,49 +62,51 @@ class OpenRouter_Chat(OpenAI_Chat):
 # --------------
 
 def make_vanna(provider: str, model_name: str, db_identifier: str, openai_api_key: Optional[str] = None, ollama_base_url: Optional[str] = None, openrouter_api_key: Optional[str] = None):
-    """Create a Vanna instance using simple memory-based vector store.
+    """Create a Vanna instance using Qdrant cloud vector store.
 
     provider: 'openai', 'openrouter', or 'ollama'
     model_name: e.g. 'gpt-4o-mini' (OpenAI), 'openai/gpt-4o-mini' (OpenRouter) or 'llama3' (Ollama)
     db_identifier: unique identifier for the database
     """
+    qdrant_cfg = {"url": ":memory:", "collection_name": f"vanna_{db_identifier}"}
 
     if provider == "openai":
         if not openai_api_key:
             raise ValueError("Missing OpenAI API key")
 
-        class MyVanna(OpenAI_Chat, VannaBase):
+        class MyVanna(OpenAI_Chat, Qdrant_VectorStore):
             def __init__(self, config=None):
                 OpenAI_Chat.__init__(self, config=config)
-                VannaBase.__init__(self, config=config)
+                Qdrant_VectorStore.__init__(self, config=config)
 
-        return MyVanna(config={"api_key": openai_api_key, "model": model_name})
+        return MyVanna(config={"api_key": openai_api_key, "model": model_name, **qdrant_cfg})
 
     elif provider == "openrouter":
         if not openrouter_api_key:
             raise ValueError("Missing OpenRouter API key")
 
-        class MyVanna(OpenRouter_Chat, VannaBase):
+        class MyVanna(OpenRouter_Chat, Qdrant_VectorStore):
             def __init__(self, config=None):
                 OpenRouter_Chat.__init__(self, config=config)
-                VannaBase.__init__(self, config=config)
+                Qdrant_VectorStore.__init__(self, config=config)
 
         return MyVanna(config={
             "api_key": openrouter_api_key, 
             "model": model_name, 
-            "base_url": "https://openrouter.ai/api/v1"
+            "base_url": "https://openrouter.ai/api/v1",
+            **qdrant_cfg
         })
 
     elif provider == "ollama":
         if not OLLAMA_AVAILABLE:
             raise RuntimeError("Ollama not available. Install `vanna[ollama]` and ensure Ollama is running.")
 
-        class MyVanna(Ollama, VannaBase):  # type: ignore
+        class MyVanna(Ollama, Qdrant_VectorStore):  # type: ignore
             def __init__(self, config=None):
                 Ollama.__init__(self, config=config)  # type: ignore
-                VannaBase.__init__(self, config=config)
+                Qdrant_VectorStore.__init__(self, config=config)
 
-        cfg = {"model": model_name}
+        cfg = {"model": model_name, **qdrant_cfg}
         if ollama_base_url:
             cfg["base_url"] = ollama_base_url
         return MyVanna(config=cfg)
@@ -234,7 +236,7 @@ with st.sidebar:
         st.write(f"**Base URL:** {ollama_base_url or 'default'}")
     
     st.write(f"**Database:** {db_kind}")
-    st.write(f"**Vector store:** In-memory")
+    st.write(f"**Vector store:** Qdrant (in-memory)")
 
 # Create Vanna instance (memoized)
 @st.cache_resource(show_spinner=False)
