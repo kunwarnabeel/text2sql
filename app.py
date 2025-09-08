@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 # === Vanna imports (LLM + Vector Store combinations) ===
-from vanna.qdrant.qdrant_vector import Qdrant_VectorStore
+from vanna.qdrant import Qdrant_VectorStore
 from vanna.openai.openai_chat import OpenAI_Chat
 from openai import OpenAI
 
@@ -68,7 +68,7 @@ def make_vanna(provider: str, model_name: str, db_identifier: str, openai_api_ke
     model_name: e.g. 'gpt-4o-mini' (OpenAI), 'openai/gpt-4o-mini' (OpenRouter) or 'llama3' (Ollama)
     db_identifier: unique identifier for the database
     """
-    qdrant_cfg = {"url": ":memory:", "collection_name": f"vanna_{db_identifier}"}
+    qdrant_cfg = {"location": ":memory:", "collection_name": f"vanna_{db_identifier}"}
 
     if provider == "openai":
         if not openai_api_key:
