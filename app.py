@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 # === Vanna imports (LLM + Vector Store combinations) ===
-from vanna.chromadb.chromadb_vector import ChromaDB_VectorStore
+from vanna.base import VannaBase
 from vanna.openai.openai_chat import OpenAI_Chat
 from openai import OpenAI
 
@@ -62,51 +62,49 @@ class OpenRouter_Chat(OpenAI_Chat):
 # --------------
 
 def make_vanna(provider: str, model_name: str, db_identifier: str, openai_api_key: Optional[str] = None, ollama_base_url: Optional[str] = None, openrouter_api_key: Optional[str] = None):
-    """Create a Vanna instance using ChromaDB as the vector store.
+    """Create a Vanna instance using simple memory-based vector store.
 
     provider: 'openai', 'openrouter', or 'ollama'
     model_name: e.g. 'gpt-4o-mini' (OpenAI), 'openai/gpt-4o-mini' (OpenRouter) or 'llama3' (Ollama)
-    db_identifier: unique identifier for the database to create separate vector store collections
+    db_identifier: unique identifier for the database
     """
-    chroma_cfg = {"path": CHROMA_DIR, "client": "persistent", "n_results": 10, "collection_name": f"vanna_{db_identifier}"}
 
     if provider == "openai":
         if not openai_api_key:
             raise ValueError("Missing OpenAI API key")
 
-        class MyVanna(OpenAI_Chat, ChromaDB_VectorStore):
+        class MyVanna(OpenAI_Chat, VannaBase):
             def __init__(self, config=None):
                 OpenAI_Chat.__init__(self, config=config)
-                ChromaDB_VectorStore.__init__(self, config=config)
+                VannaBase.__init__(self, config=config)
 
-        return MyVanna(config={"api_key": openai_api_key, "model": model_name, **chroma_cfg})
+        return MyVanna(config={"api_key": openai_api_key, "model": model_name})
 
     elif provider == "openrouter":
         if not openrouter_api_key:
             raise ValueError("Missing OpenRouter API key")
 
-        class MyVanna(OpenRouter_Chat, ChromaDB_VectorStore):
+        class MyVanna(OpenRouter_Chat, VannaBase):
             def __init__(self, config=None):
                 OpenRouter_Chat.__init__(self, config=config)
-                ChromaDB_VectorStore.__init__(self, config=config)
+                VannaBase.__init__(self, config=config)
 
         return MyVanna(config={
             "api_key": openrouter_api_key, 
             "model": model_name, 
-            "base_url": "https://openrouter.ai/api/v1",
-            **chroma_cfg
+            "base_url": "https://openrouter.ai/api/v1"
         })
 
     elif provider == "ollama":
         if not OLLAMA_AVAILABLE:
             raise RuntimeError("Ollama not available. Install `vanna[ollama]` and ensure Ollama is running.")
 
-        class MyVanna(Ollama, ChromaDB_VectorStore):  # type: ignore
+        class MyVanna(Ollama, VannaBase):  # type: ignore
             def __init__(self, config=None):
                 Ollama.__init__(self, config=config)  # type: ignore
-                ChromaDB_VectorStore.__init__(self, config=config)
+                VannaBase.__init__(self, config=config)
 
-        cfg = {"model": model_name, **chroma_cfg}
+        cfg = {"model": model_name}
         if ollama_base_url:
             cfg["base_url"] = ollama_base_url
         return MyVanna(config=cfg)
@@ -236,9 +234,7 @@ with st.sidebar:
         st.write(f"**Base URL:** {ollama_base_url or 'default'}")
     
     st.write(f"**Database:** {db_kind}")
-    st.write(f"**Vector store:** `{CHROMA_DIR}`")
-    if "current_db_id" in st.session_state:
-        st.write(f"**Collection:** `vanna_{st.session_state.current_db_id}`")
+    st.write(f"**Vector store:** In-memory")
 
 # Create Vanna instance (memoized)
 @st.cache_resource(show_spinner=False)
