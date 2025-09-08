@@ -7,3 +7,4 @@ plotly>=5.15.0
 chromadb==0.4.24
 pydantic<2.0.0
 SQLAlchemy<2.0.0
+numpy<2.0.0
